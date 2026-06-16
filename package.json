@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "discord.js": "^14.26.4"
+  },
+  "devDependencies": {
+    "eslint": "^10.5.0"
+  },
+  "scripts": {
+    "bot": "bun src/index.ts"
+  }
+}
