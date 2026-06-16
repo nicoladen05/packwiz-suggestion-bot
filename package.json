@@ -6,6 +6,7 @@
     "eslint": "^10.5.0"
   },
   "scripts": {
-    "bot": "bun src/index.ts"
+    "bot": "bun src/index.ts",
+    "deploy-commands": "bun src/deploy-commands.ts"
   }
 }
