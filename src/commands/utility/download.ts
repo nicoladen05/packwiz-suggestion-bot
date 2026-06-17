@@ -123,6 +123,7 @@ async function handleLauncher(
       time: 600_000,
     });
 
+    await interaction.deferUpdate();
     console.log("WHHHYYYYYYYY;-;");
     await showPreLaunchHook(done, launcherName);
   } catch {
@@ -174,8 +175,6 @@ async function showPreLaunchHook(
       desc: "Füge die untenstehenden Java-Argumente in das `JVM-Argumente` Feld ein.",
     },
   ];
-
-  await interaction.deferUpdate();
 
   const files: { attachment: string; name: string }[] = [];
   const embeds: EmbedBuilder[] = [];
