@@ -55,7 +55,10 @@ export default {
       if (!response.resource?.message) return;
 
       const choice = await response.resource.message.awaitMessageComponent({
-        filter: (i) => i.customId === "modrinth" || i.customId === "prism" || i.customId === "own-launcher",
+        filter: (i) =>
+          i.customId === "modrinth" ||
+          i.customId === "prism" ||
+          i.customId === "own-launcher",
         componentType: ComponentType.Button,
         time: 120_000,
       });
@@ -104,7 +107,7 @@ async function handleLauncher(
   });
 
   try {
-    const done = await interaction.message.awaitMessageComponent({
+    const done = await interaction.channel!.awaitMessageComponent({
       filter: (i) => i.customId === "done",
       componentType: ComponentType.Button,
       time: 600_000,
@@ -233,7 +236,7 @@ function buildFertigRow(): ActionRowBuilder<ButtonBuilder> {
 
 async function waitForFertig(interaction: ButtonInteraction) {
   try {
-    const fertig = await interaction.message.awaitMessageComponent({
+    const fertig = await interaction.channel!.awaitMessageComponent({
       filter: (i) => i.customId === "fertig",
       componentType: ComponentType.Button,
       time: 300_000,
