@@ -65,10 +65,20 @@ export default {
 
       switch (choice.customId) {
         case "modrinth":
-          await handleLauncher(choice, "Modrinth", MODRINTH_DOWNLOAD, MODRINTH_TUTORIAL);
+          await handleLauncher(
+            choice,
+            "Modrinth",
+            MODRINTH_DOWNLOAD,
+            MODRINTH_TUTORIAL,
+          );
           break;
         case "prism":
-          await handleLauncher(choice, "Prism Launcher", PRISM_DOWNLOAD, PRISM_TUTORIAL);
+          await handleLauncher(
+            choice,
+            "Prism Launcher",
+            PRISM_DOWNLOAD,
+            PRISM_TUTORIAL,
+          );
           break;
         case "own-launcher":
           await handleOwnLauncher(choice);
@@ -113,6 +123,7 @@ async function handleLauncher(
       time: 600_000,
     });
 
+    console.log("WHHHYYYYYYYY;-;");
     await showPreLaunchHook(done, launcherName);
   } catch {
     // Timeout
@@ -142,8 +153,8 @@ async function showPreLaunchHook(
     {
       title: "Schritt 4: Instanz-Einstellungen öffnen",
       desc: isModrinth
-        ? 'Klicke auf die drei Punkte (`⋯`) → `Einstellungen`.'
-        : 'Rechtsklick auf die Instanz → `Einstellungen`.',
+        ? "Klicke auf die drei Punkte (`⋯`) → `Einstellungen`."
+        : "Rechtsklick auf die Instanz → `Einstellungen`.",
     },
     {
       title: "Schritt 5: Einstellungen navigieren",
@@ -153,7 +164,10 @@ async function showPreLaunchHook(
     },
     {
       title: "Schritt 6: Pre-Launch Hook setzen",
-      desc: `Füge den untenstehenden Befehl in das ` + (isModrinth ? "`Pre-Launch Hook`" : "`Pre-Launch Command`") + ` Feld ein.`,
+      desc:
+        `Füge den untenstehenden Befehl in das ` +
+        (isModrinth ? "`Pre-Launch Hook`" : "`Pre-Launch Command`") +
+        ` Feld ein.`,
     },
     {
       title: "Schritt 7: Java Argumente setzen",
@@ -188,11 +202,11 @@ async function showPreLaunchHook(
 
   await interaction.message.edit({
     content:
-      `### ✅ Pre-Launch Hook – ${launcherName}\n\n`
-      + "**Pre-Launch Hook Befehl:**\n"
-      + `\`\`\`bash\n${PRE_LAUNCH_HOOK}\n\`\`\`\n\n`
-      + "**Java Argumente:**\n"
-      + `\`\`\`\n${JAVA_START_TAGS}\n\`\`\``,
+      `### ✅ Pre-Launch Hook – ${launcherName}\n\n` +
+      "**Pre-Launch Hook Befehl:**\n" +
+      `\`\`\`bash\n${PRE_LAUNCH_HOOK}\n\`\`\`\n\n` +
+      "**Java Argumente:**\n" +
+      `\`\`\`\n${JAVA_START_TAGS}\n\`\`\``,
     embeds,
     components: [buildFertigRow()],
     files,
@@ -201,24 +215,22 @@ async function showPreLaunchHook(
   await waitForFertig(interaction);
 }
 
-async function handleOwnLauncher(
-  interaction: ButtonInteraction,
-) {
+async function handleOwnLauncher(interaction: ButtonInteraction) {
   await interaction.update({
     content:
-      "### Eigener Launcher\n\n"
-      + "**Pre-Launch Hook Befehl:**\n"
-      + `\`\`\`bash\n${PRE_LAUNCH_HOOK}\n\`\`\`\n\n`
-      + "Füge diesen Befehl in den Pre-Launch Hook Einstellungen deines Launchers ein.\n\n"
-      + "### ☕ Java Start Tags\n"
-      + "Füge diese JVM-Argumente in den Java-Einstellungen deines Launchers hinzu.\n\n"
-      + "**Wo finden?**\n"
-      + "- **Prism Launcher:** Einstellungen → Java → Java Arguments\n"
-      + "- **Modrinth:** Einstellungen → Java → JVM Arguments\n"
-      + "- **MultiMC:** Einstellungen → Java → JVM Arguments\n"
-      + "- **ATLauncher:** Settings → Java → Extra JVM Arguments\n\n"
-      + "**Tags:**\n"
-      + `\`\`\`bash\n${JAVA_START_TAGS}\n\`\`\``,
+      "### Eigener Launcher\n\n" +
+      "**Pre-Launch Hook Befehl:**\n" +
+      `\`\`\`bash\n${PRE_LAUNCH_HOOK}\n\`\`\`\n\n` +
+      "Füge diesen Befehl in den Pre-Launch Hook Einstellungen deines Launchers ein.\n\n" +
+      "### ☕ Java Start Tags\n" +
+      "Füge diese JVM-Argumente in den Java-Einstellungen deines Launchers hinzu.\n\n" +
+      "**Wo finden?**\n" +
+      "- **Prism Launcher:** Einstellungen → Java → Java Arguments\n" +
+      "- **Modrinth:** Einstellungen → Java → JVM Arguments\n" +
+      "- **MultiMC:** Einstellungen → Java → JVM Arguments\n" +
+      "- **ATLauncher:** Settings → Java → Extra JVM Arguments\n\n" +
+      "**Tags:**\n" +
+      `\`\`\`bash\n${JAVA_START_TAGS}\n\`\`\``,
     components: [buildFertigRow()],
   });
 
