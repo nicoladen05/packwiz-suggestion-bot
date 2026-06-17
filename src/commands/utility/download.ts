@@ -172,8 +172,10 @@ async function showPreLaunchHook(
     await copy.update({
       content: `### ✅ Pre-Launch Hook – ${launcherName}\n\n**Pre-Launch Hook Befehl:**\n\`\`\`bash\n${PRE_LAUNCH_HOOK}\n\`\`\``,
       embeds: [],
-      components: [],
+      components: [buildFertigRow()],
     });
+
+    await waitForFertig(copy);
   } catch {
     // Timeout
   }
@@ -221,9 +223,31 @@ async function handleOwnLauncher(
         + "- **ATLauncher:** Settings → Java → Extra JVM Arguments\n\n"
         + "**Tags:**\n"
         + `\`\`\`bash\n${JAVA_START_TAGS}\n\`\`\``,
-      components: [],
+      components: [buildFertigRow()],
     });
+
+    await waitForFertig(copy);
   } catch {
     // Timeout
   }
+}
+
+function buildFertigRow(): ActionRowBuilder<ButtonBuilder> {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId("fertig")
+      .setLabel("Fertig")
+      .setStyle(ButtonStyle.Success),
+  );
+}
+
+async function waitForFertig(interaction: ButtonInteraction) {
+  const fertig = await interaction.channel!.awaitMessageComponent({
+    filter: (i) => i.customId === "fertig",
+    componentType: ComponentType.Button,
+    time: 300_000,
+  });
+
+  await fertig.deferUpdate();
+  await fertig.message.delete();
 }
