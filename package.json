@@ -1,12 +1,17 @@
 {
   "dependencies": {
+    "@libsql/client": "^0.17.4",
     "discord.js": "^14.26.4",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
     "execa": "^9.6.1",
     "p-queue": "^9.3.0",
     "simple-git": "^3.36.0"
   },
   "devDependencies": {
-    "eslint": "^10.5.0"
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^10.5.0",
+    "tsx": "^4.22.4"
   },
   "scripts": {
     "bot": "bun src/index.ts",

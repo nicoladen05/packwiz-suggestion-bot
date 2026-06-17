@@ -2,6 +2,7 @@ import { Events, GatewayIntentBits, MessageFlags } from "discord.js";
 import { Client } from "./client";
 import { loadCommands } from "./load-commands";
 import { PackwizModpack } from "./lib/packwiz-modpack";
+import { handleSetupModalSubmit } from "./commands/admin/setup";
 
 const commands = await loadCommands();
 
@@ -40,6 +41,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
       });
     }
   }
+});
+
+client.on(Events.InteractionCreate, async (interaction) => {
+  if (!interaction.isModalSubmit()) return;
+
+  if (interaction.customId === "setup")
+    await handleSetupModalSubmit(interaction);
 });
 
 const token = process.env.TOKEN;

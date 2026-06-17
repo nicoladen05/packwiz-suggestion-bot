@@ -4,6 +4,7 @@ import {
   MessageFlags,
   SlashCommandBuilder,
   StringSelectMenuBuilder,
+  StringSelectMenuInteraction,
   StringSelectMenuOptionBuilder,
 } from "discord.js";
 import type { Command } from "../../client";
@@ -32,17 +33,44 @@ async function processSubmission(interaction: ChatInputCommandInteraction) {
     .value as string;
 
   const searchResults = await searchModrinthProjects(searchQuery);
+  const selectedProject =
+    searchResults.length > 1
+      ? await sendSelectionMenu(interaction, searchResults)
+      : searchResults[0];
 
-  if (searchResults.length > 1) {
-    const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
-      buildSelectionMenu(searchResults),
+  if (!selectedProject) return;
+}
+
+async function sendSelectionMenu(
+  interaction: ChatInputCommandInteraction,
+  searchResults: ModrinthProject[],
+): Promise<ModrinthProject | undefined> {
+  const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+    buildSelectionMenu(searchResults),
+  );
+
+  const response = await interaction.reply({
+    content: "Choose the correct mod",
+    components: [row],
+    flags: MessageFlags.Ephemeral,
+    withResponse: true,
+  });
+
+  try {
+    const selection = (await response.resource?.message?.awaitMessageComponent({
+      time: 60_000,
+      filter: (responder) => responder.user.id === interaction.user.id,
+    })) as StringSelectMenuInteraction;
+
+    return (
+      searchResults.find((project) => project.title === selection.values[0]) ??
+      undefined
     );
-
-    await interaction.followUp({
-      content: "Choose the correct mod",
-      components: [row],
-      flags: MessageFlags.Ephemeral,
+  } catch {
+    await interaction.editReply({
+      content: "No selection received within 10 minutes, cancelling",
     });
+    return undefined;
   }
 }
 
