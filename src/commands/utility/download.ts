@@ -29,10 +29,6 @@ export default {
     .setDescription("Full tutorial on how to install and setup everything."),
 
   execute: async (interaction: ChatInputCommandInteraction) => {
-    if (!interaction.channel) return;
-
-    const { channel } = interaction;
-
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
         .setCustomId("modrinth")
@@ -108,7 +104,7 @@ async function handleLauncher(
   });
 
   try {
-    const done = await interaction.channel!.awaitMessageComponent({
+    const done = await interaction.message.awaitMessageComponent({
       filter: (i) => i.customId === "done",
       componentType: ComponentType.Button,
       time: 600_000,
@@ -162,6 +158,8 @@ async function showPreLaunchHook(
     },
   ];
 
+  await interaction.deferUpdate();
+
   const files: { attachment: string; name: string }[] = [];
   const embeds: EmbedBuilder[] = [];
 
@@ -185,7 +183,7 @@ async function showPreLaunchHook(
     name: "MCModded.mrpack",
   });
 
-  await interaction.update({
+  await interaction.message.edit({
     content:
       `### ✅ Pre-Launch Hook – ${launcherName}\n\n`
       + "**Pre-Launch Hook Befehl:**\n"
@@ -235,7 +233,7 @@ function buildFertigRow(): ActionRowBuilder<ButtonBuilder> {
 
 async function waitForFertig(interaction: ButtonInteraction) {
   try {
-    const fertig = await interaction.channel!.awaitMessageComponent({
+    const fertig = await interaction.message.awaitMessageComponent({
       filter: (i) => i.customId === "fertig",
       componentType: ComponentType.Button,
       time: 300_000,
