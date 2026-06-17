@@ -57,6 +57,7 @@ export default {
 
     try {
       if (!response.resource?.message) return;
+
       const choice = await response.resource.message.awaitMessageComponent({
         filter: (i) => i.customId === "modrinth" || i.customId === "prism" || i.customId === "own-launcher",
         componentType: ComponentType.Button,
@@ -168,9 +169,10 @@ async function showPreLaunchHook(
       time: 600_000,
     });
 
-    await copy.reply({
-      content: `\`\`\`bash\n${PRE_LAUNCH_HOOK}\n\`\`\``,
-      flags: MessageFlags.Ephemeral,
+    await copy.update({
+      content: `### ✅ Pre-Launch Hook – ${launcherName}\n\n**Pre-Launch Hook Befehl:**\n\`\`\`bash\n${PRE_LAUNCH_HOOK}\n\`\`\``,
+      embeds: [],
+      components: [],
     });
   } catch {
     // Timeout
@@ -205,49 +207,21 @@ async function handleOwnLauncher(
       time: 300_000,
     });
 
-    await copy.reply({
-      content: `\`\`\`bash\n${PRE_LAUNCH_HOOK}\n\`\`\``,
-      flags: MessageFlags.Ephemeral,
-    });
-
-    await showJavaStartTags(copy);
-  } catch {
-    // Timeout
-  }
-}
-
-async function showJavaStartTags(
-  interaction: ButtonInteraction,
-) {
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId("copy-java")
-      .setLabel("☕ Java Start Tags kopieren")
-      .setStyle(ButtonStyle.Primary),
-  );
-
-  await interaction.message.edit({
-    content:
-      "### ☕ Java Start Tags\n"
-      + "Füge diese JVM-Argumente in den Java-Einstellungen deines Launchers hinzu.\n\n"
-      + "**Wo finden?**\n"
-      + "- **Prism Launcher:** Einstellungen → Java → Java Arguments\n"
-      + "- **Modrinth:** Einstellungen → Java → JVM Arguments\n"
-      + "- **MultiMC:** Einstellungen → Java → JVM Arguments\n"
-      + "- **ATLauncher:** Settings → Java → Extra JVM Arguments",
-    components: [row],
-  });
-
-  try {
-    const java = await interaction.channel!.awaitMessageComponent({
-      filter: (i) => i.customId === "copy-java",
-      componentType: ComponentType.Button,
-      time: 300_000,
-    });
-
-    await java.reply({
-      content: `\`\`\`bash\n${JAVA_START_TAGS}\n\`\`\``,
-      flags: MessageFlags.Ephemeral,
+    await copy.update({
+      content:
+        "### Eigener Launcher\n\n"
+        + "**Pre-Launch Hook Befehl:**\n"
+        + `\`\`\`bash\n${PRE_LAUNCH_HOOK}\n\`\`\`\n\n`
+        + "### ☕ Java Start Tags\n"
+        + "Füge diese JVM-Argumente in den Java-Einstellungen deines Launchers hinzu.\n\n"
+        + "**Wo finden?**\n"
+        + "- **Prism Launcher:** Einstellungen → Java → Java Arguments\n"
+        + "- **Modrinth:** Einstellungen → Java → JVM Arguments\n"
+        + "- **MultiMC:** Einstellungen → Java → JVM Arguments\n"
+        + "- **ATLauncher:** Settings → Java → Extra JVM Arguments\n\n"
+        + "**Tags:**\n"
+        + `\`\`\`bash\n${JAVA_START_TAGS}\n\`\`\``,
+      components: [],
     });
   } catch {
     // Timeout
