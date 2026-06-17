@@ -17,7 +17,7 @@ export type ModrinthProject = {
   versions: string[];
   latest_version?: string;
   gallery?: string[];
-  featured_gallery?: string[];
+  featured_gallery: string;
 };
 
 export type ModrinthFacets = {

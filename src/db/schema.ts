@@ -9,5 +9,5 @@ export const modpack = sqliteTable("modpack", {
   serverId: text()
     .primaryKey()
     .references(() => server.serverId),
-  url: text(),
+  url: text().notNull(),
 });

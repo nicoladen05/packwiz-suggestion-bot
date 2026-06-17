@@ -9,6 +9,7 @@ import {
 } from "discord.js";
 import type { Command } from "../../client";
 import { ModrinthProject, searchModrinthProjects } from "../../lib/modrinth";
+import { sendPoll } from "../../utils/send-poll";
 
 export default {
   data: new SlashCommandBuilder()
@@ -29,6 +30,8 @@ export default {
 } satisfies Command;
 
 async function processSubmission(interaction: ChatInputCommandInteraction) {
+  if (!interaction.channel) return;
+
   const searchQuery = interaction.options.get("search-query", true)
     .value as string;
 
@@ -39,6 +42,10 @@ async function processSubmission(interaction: ChatInputCommandInteraction) {
       : searchResults[0];
 
   if (!selectedProject) return;
+
+  await sendPoll(interaction.channel.id, interaction.user, selectedProject);
+
+  await interaction.editReply("✅ Suggestion submitted!");
 }
 
 async function sendSelectionMenu(
@@ -49,22 +56,23 @@ async function sendSelectionMenu(
     buildSelectionMenu(searchResults),
   );
 
-  const response = await interaction.reply({
+  const message = await interaction.editReply({
     content: "Choose the correct mod",
     components: [row],
-    flags: MessageFlags.Ephemeral,
-    withResponse: true,
   });
 
   try {
-    const selection = (await response.resource?.message?.awaitMessageComponent({
-      time: 60_000,
+    const selection = (await message.awaitMessageComponent({
+      time: 600_000,
       filter: (responder) => responder.user.id === interaction.user.id,
     })) as StringSelectMenuInteraction;
 
+    await selection.deferUpdate();
+
     return (
-      searchResults.find((project) => project.title === selection.values[0]) ??
-      undefined
+      searchResults.find(
+        (project) => project.project_id === selection.values[0],
+      ) ?? undefined
     );
   } catch {
     await interaction.editReply({
@@ -84,6 +92,7 @@ function buildSelectionMenu(
       ...projects.map((project) =>
         new StringSelectMenuOptionBuilder()
           .setLabel(project.title ?? "Unknown Mod")
+          .setDescription(project.description?.substring(0, 100) ?? "N/A")
           .setValue(project.project_id),
       ),
     );
