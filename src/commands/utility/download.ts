@@ -31,7 +31,7 @@ export default {
   execute: async (interaction: ChatInputCommandInteraction) => {
     if (!interaction.channel) return;
 
-    const { channel, user } = interaction;
+    const { channel } = interaction;
 
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
@@ -125,111 +125,103 @@ async function showPreLaunchHook(
   launcherName: string,
 ) {
   const isModrinth = launcherName === "Modrinth";
+  const folder = isModrinth ? "modrinth" : "prism";
 
-  const embed = new EmbedBuilder()
-    .setTitle("Pre-Launch Hook einrichten")
-    .setDescription(
-      [
-        `So richtest du den Pre-Launch Hook in **${launcherName}** ein:`,
-        "",
-        "**1. Neue Instanz erstellen**",
-        "Öffne den Launcher und erstelle eine neue Minecraft-Instanz.",
-        "",
-        "**2. Einstellungen öffnen**",
-        "Gehe zu den Instanz-Einstellungen.",
-        "",
-        "**3. Pre-Launch Hook konfigurieren**",
-        isModrinth
-          ? 'Gehe zu "Einstellungen" → "Pre-Launch Hook" und füge den Befehl ein.'
-          : 'Gehe zu "Einstellungen" → "Custom Commands" → "Pre-Launch Command" und füge den Befehl ein.',
-        "",
-        "**4. Speichern & Starten**",
-        "Speichere die Einstellungen und starte die Instanz. Der Hook wird automatisch ausgeführt.",
-      ].join("\n"),
-    )
-    .setColor(0x00ff00);
+  const steps = [
+    {
+      title: "Schritt 1: Mrpack herunterladen",
+      desc: "Lade das beigefügte `.mrpack` herunter.",
+    },
+    {
+      title: "Schritt 2: Neue Instanz erstellen",
+      desc: "Öffne den Launcher und erstelle eine neue Instanz.\nWähle die gewünschte Minecraft-Version.",
+    },
+    {
+      title: "Schritt 3: Mrpack importieren",
+      desc: "Klicke auf `Import` und wähle die heruntergeladene `.mrpack`-Datei aus.\nDie Modifikationen werden automatisch übernommen.",
+    },
+    {
+      title: "Schritt 4: Instanz-Einstellungen öffnen",
+      desc: isModrinth
+        ? 'Klicke auf die drei Punkte (`⋯`) → `Einstellungen`.'
+        : 'Rechtsklick auf die Instanz → `Einstellungen`.',
+    },
+    {
+      title: "Schritt 5: Einstellungen navigieren",
+      desc: isModrinth
+        ? "Gehe zum Reiter `Einstellungen`."
+        : "Gehe zum Reiter `Custom Commands`.",
+    },
+    {
+      title: "Schritt 6: Pre-Launch Hook setzen",
+      desc: `Füge den untenstehenden Befehl in das ` + (isModrinth ? "`Pre-Launch Hook`" : "`Pre-Launch Command`") + ` Feld ein.`,
+    },
+    {
+      title: "Schritt 7: Java Argumente setzen",
+      desc: "Füge die untenstehenden Java-Argumente in das `JVM-Argumente` Feld ein.",
+    },
+  ];
 
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId("copy-hook")
-      .setLabel("📋 Pre-Launch Hook kopieren")
-      .setStyle(ButtonStyle.Secondary),
-  );
+  const files: { attachment: string; name: string }[] = [];
+  const embeds: EmbedBuilder[] = [];
 
-  await interaction.update({
-    content: `### ✅ Pre-Launch Hook – ${launcherName}`,
-    embeds: [embed],
-    components: [row],
+  for (let i = 0; i < steps.length; i++) {
+    const imageName = `${folder}_install${i + 1}.png`;
+    files.push({
+      attachment: `./assets/${folder}/install${i + 1}.png`,
+      name: imageName,
+    });
+    embeds.push(
+      new EmbedBuilder()
+        .setTitle(steps[i].title)
+        .setDescription(steps[i].desc)
+        .setImage(`attachment://${imageName}`)
+        .setColor(0x00aeff),
+    );
+  }
+
+  files.push({
+    attachment: "./assets/MCModded.mrpack",
+    name: "MCModded.mrpack",
   });
 
-  try {
-    const copy = await interaction.channel!.awaitMessageComponent({
-      filter: (i) => i.customId === "copy-hook",
-      componentType: ComponentType.Button,
-      time: 600_000,
-    });
+  await interaction.update({
+    content:
+      `### ✅ Pre-Launch Hook – ${launcherName}\n\n`
+      + "**Pre-Launch Hook Befehl:**\n"
+      + `\`\`\`bash\n${PRE_LAUNCH_HOOK}\n\`\`\`\n\n`
+      + "**Java Argumente:**\n"
+      + `\`\`\`\n${JAVA_START_TAGS}\n\`\`\``,
+    embeds,
+    components: [buildFertigRow()],
+    files,
+  });
 
-    await copy.update({
-      content: `### ✅ Pre-Launch Hook – ${launcherName}\n\n**Pre-Launch Hook Befehl:**\n\`\`\`bash\n${PRE_LAUNCH_HOOK}\n\`\`\``,
-      embeds: [],
-      components: [buildFertigRow()],
-    });
-
-    await waitForFertig(copy);
-  } catch {
-    // Timeout
-  }
+  await waitForFertig(interaction);
 }
 
 async function handleOwnLauncher(
   interaction: ButtonInteraction,
 ) {
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId("copy-hook-own")
-      .setLabel("📋 Pre-Launch Hook kopieren")
-      .setStyle(ButtonStyle.Primary),
-  );
-
   await interaction.update({
     content:
-      "### Eigener Launcher\n"
-      + "Füge den Pre-Launch Hook manuell in deinem Launcher ein. "
-      + "Die genaue Vorgehensweise hängt von deinem Launcher ab.\n\n"
-      + "**Wichtig:** Der Hook muss **vor** dem Start von Minecraft ausgeführt werden.\n"
-      + "Suche in den Einstellungen deines Launchers nach \"Pre-Launch Hook\", "
-      + "\"Pre-Launch Command\" oder \"Custom Commands\".",
-    components: [row],
+      "### Eigener Launcher\n\n"
+      + "**Pre-Launch Hook Befehl:**\n"
+      + `\`\`\`bash\n${PRE_LAUNCH_HOOK}\n\`\`\`\n\n`
+      + "Füge diesen Befehl in den Pre-Launch Hook Einstellungen deines Launchers ein.\n\n"
+      + "### ☕ Java Start Tags\n"
+      + "Füge diese JVM-Argumente in den Java-Einstellungen deines Launchers hinzu.\n\n"
+      + "**Wo finden?**\n"
+      + "- **Prism Launcher:** Einstellungen → Java → Java Arguments\n"
+      + "- **Modrinth:** Einstellungen → Java → JVM Arguments\n"
+      + "- **MultiMC:** Einstellungen → Java → JVM Arguments\n"
+      + "- **ATLauncher:** Settings → Java → Extra JVM Arguments\n\n"
+      + "**Tags:**\n"
+      + `\`\`\`bash\n${JAVA_START_TAGS}\n\`\`\``,
+    components: [buildFertigRow()],
   });
 
-  try {
-    const copy = await interaction.channel!.awaitMessageComponent({
-      filter: (i) => i.customId === "copy-hook-own",
-      componentType: ComponentType.Button,
-      time: 300_000,
-    });
-
-    await copy.update({
-      content:
-        "### Eigener Launcher\n\n"
-        + "**Pre-Launch Hook Befehl:**\n"
-        + `\`\`\`bash\n${PRE_LAUNCH_HOOK}\n\`\`\`\n\n`
-        + "### ☕ Java Start Tags\n"
-        + "Füge diese JVM-Argumente in den Java-Einstellungen deines Launchers hinzu.\n\n"
-        + "**Wo finden?**\n"
-        + "- **Prism Launcher:** Einstellungen → Java → Java Arguments\n"
-        + "- **Modrinth:** Einstellungen → Java → JVM Arguments\n"
-        + "- **MultiMC:** Einstellungen → Java → JVM Arguments\n"
-        + "- **ATLauncher:** Settings → Java → Extra JVM Arguments\n\n"
-        + "**Tags:**\n"
-        + `\`\`\`bash\n${JAVA_START_TAGS}\n\`\`\``,
-      components: [buildFertigRow()],
-    });
-
-    await waitForFertig(copy);
-  } catch {
-    // Timeout
-  }
+  await waitForFertig(interaction);
 }
 
 function buildFertigRow(): ActionRowBuilder<ButtonBuilder> {
@@ -242,12 +234,15 @@ function buildFertigRow(): ActionRowBuilder<ButtonBuilder> {
 }
 
 async function waitForFertig(interaction: ButtonInteraction) {
-  const fertig = await interaction.channel!.awaitMessageComponent({
-    filter: (i) => i.customId === "fertig",
-    componentType: ComponentType.Button,
-    time: 300_000,
-  });
+  try {
+    const fertig = await interaction.channel!.awaitMessageComponent({
+      filter: (i) => i.customId === "fertig",
+      componentType: ComponentType.Button,
+      time: 300_000,
+    });
 
-  await fertig.deferUpdate();
-  await fertig.message.delete();
+    await fertig.update({ content: "✅", embeds: [], components: [] });
+  } catch {
+    // Timeout
+  }
 }
