@@ -11,3 +11,9 @@ export const modpack = sqliteTable("modpack", {
     .references(() => server.serverId),
   url: text().notNull(),
 });
+
+export const activePoll = sqliteTable("active_poll", {
+  messageId: text().primaryKey(),
+  finishesAt: text().notNull(),
+  projectId: text().notNull(),
+});

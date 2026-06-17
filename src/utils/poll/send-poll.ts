@@ -1,6 +1,8 @@
-import { ModrinthProject } from "../lib/modrinth";
-import { client } from "..";
+import { ModrinthProject } from "../../lib/modrinth";
+import { client } from "../..";
 import { EmbedBuilder, PollData, TextChannel, User } from "discord.js";
+import { db } from "../../db";
+import { activePoll } from "../../db/schema";
 
 /**
  * Sends a poll to the specified channel, to propose adding a project to the modpack.
@@ -27,12 +29,18 @@ export async function sendPoll(
       { text: "Ja, hinzufügen", emoji: "\u{1F44D}" }, // 👍
       { text: "Nein, nicht hinzufügen", emoji: "\u{1F44E}" }, // 👎
     ],
-    duration: 24,
+    duration: 1,
     allowMultiselect: false,
   };
 
   await channel.send({ embeds: [modEmbed] });
-  await channel.send({ poll });
+  const message = await channel.send({ poll });
+
+  await db.insert(activePoll).values({
+    messageId: message.id,
+    finishesAt: message.poll!.expiresAt!.toISOString(),
+    projectId: project.project_id,
+  });
 }
 
 function buildModEmbed(project: ModrinthProject): EmbedBuilder {

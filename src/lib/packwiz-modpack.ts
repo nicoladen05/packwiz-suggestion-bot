@@ -4,6 +4,9 @@ import { mkdir, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { execa } from "execa";
 import PQueue from "p-queue";
+import { db } from "../db";
+import { modpack } from "../db/schema";
+import { eq } from "drizzle-orm";
 
 export const packwizOperationQueue = new PQueue({ concurrency: 3 });
 
@@ -17,13 +20,30 @@ export class PackwizModpack {
 
   private git: SimpleGit;
 
-  constructor(repoUrl: string, repoPath: string, worktreePath: string) {
+  constructor(repoUrl: string) {
     this.repoUrl = repoUrl;
-    this.repoPath = repoPath;
-    this.worktreePath = worktreePath;
+    this.repoPath = process.env.REPOS_PATH ?? "/tmp/packwiz-repos";
+    this.worktreePath = process.env.WORKTREE_PATH ?? "/tmp/packwiz-worktrees";
     this.git = simpleGit(this.repoPath);
 
     this.initPromise = this.downloadRepository();
+  }
+
+  /**
+   * Gets the configured packwiz modpack for the given server.
+   * @param serverId The ID of the server to get the modpack for.
+   * @returns The configured packwiz modpack, or undefined if no modpack is configured for the server.
+   */
+  public static async getForServer(
+    serverId: string,
+  ): Promise<PackwizModpack | undefined> {
+    const repoUrl = await db
+      .select()
+      .from(modpack)
+      .where(eq(modpack.serverId, serverId))
+      .then((modpack) => (modpack.length != 0 ? modpack[0].url : null));
+
+    return repoUrl ? new PackwizModpack(repoUrl) : undefined;
   }
 
   private async folderIsEmpty(path: string): Promise<boolean> {

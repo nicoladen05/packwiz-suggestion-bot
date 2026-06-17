@@ -9,7 +9,7 @@ import {
 } from "discord.js";
 import type { Command } from "../../client";
 import { ModrinthProject, searchModrinthProjects } from "../../lib/modrinth";
-import { sendPoll } from "../../utils/send-poll";
+import { sendPoll } from "../../utils/poll/send-poll";
 
 export default {
   data: new SlashCommandBuilder()

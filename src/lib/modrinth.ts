@@ -89,3 +89,28 @@ function parseFacets(facets: ModrinthFacets): string {
 
   return `[${facetStrings.join(",")}]`;
 }
+
+/**
+ * Fetches a project by its ID from the Modrinth API.
+ * @param projectId The ID of the project to fetch.
+ * @returns
+ */
+export async function getProjectById(
+  projectId: string,
+): Promise<ModrinthProject | undefined> {
+  const response = await fetch(
+    `https://api.modrinth.com/v2/project/${projectId}`,
+    {
+      headers: {
+        "User-Agent": USER_AGENT,
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  if (!response.ok) {
+    return undefined;
+  }
+
+  return (await response.json()) satisfies ModrinthProject;
+}

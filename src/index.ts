@@ -1,8 +1,8 @@
 import { Events, GatewayIntentBits, MessageFlags } from "discord.js";
 import { Client } from "./client";
 import { loadCommands } from "./load-commands";
-import { PackwizModpack } from "./lib/packwiz-modpack";
 import { handleSetupModalSubmit } from "./commands/admin/setup";
+import { startup } from "./utils/startup";
 
 const commands = await loadCommands();
 
@@ -51,18 +51,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 const token = process.env.TOKEN;
-const packwizRepository = process.env.PACKWIZ_REPOSITORY;
+if (!token) throw new Error("TOKEN environment variable is not set");
 
-if (!token || !packwizRepository) {
-  throw new Error(
-    "TOKEN and PACKWIZ_REPOSITORY environment variables are required",
-  );
-}
-
-export const modpack = new PackwizModpack(
-  packwizRepository,
-  process.env.REPOSITORY_PATH ?? "./repo/",
-  process.env.WORKTREE_PATH ?? "/tmp/packwiz-suggestion-bot-worktrees",
-);
-
+startup();
 client.login(token);
