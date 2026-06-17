@@ -65,20 +65,10 @@ export default {
 
       switch (choice.customId) {
         case "modrinth":
-          await handleLauncher(
-            choice,
-            "Modrinth",
-            MODRINTH_DOWNLOAD,
-            MODRINTH_TUTORIAL,
-          );
+          await handleLauncher(choice, "Modrinth", MODRINTH_DOWNLOAD, MODRINTH_TUTORIAL);
           break;
         case "prism":
-          await handleLauncher(
-            choice,
-            "Prism Launcher",
-            PRISM_DOWNLOAD,
-            PRISM_TUTORIAL,
-          );
+          await handleLauncher(choice, "Prism Launcher", PRISM_DOWNLOAD, PRISM_TUTORIAL);
           break;
         case "own-launcher":
           await handleOwnLauncher(choice);
@@ -118,13 +108,11 @@ async function handleLauncher(
 
   try {
     const done = await interaction.channel!.awaitMessageComponent({
-      filter: (i) => i.customId === "done",
+      filter: (i) => i.user.id === interaction.user.id && i.customId === "done",
       componentType: ComponentType.Button,
       time: 600_000,
     });
 
-    await interaction.deferUpdate();
-    console.log("WHHHYYYYYYYY;-;");
     await showPreLaunchHook(done, launcherName);
   } catch {
     // Timeout
@@ -141,114 +129,177 @@ async function showPreLaunchHook(
   const steps = [
     {
       title: "Schritt 1: Mrpack herunterladen",
-      desc: "Lade das beigefügte `.mrpack` herunter.",
+      desc: "Lade das beigefügte `.mrpack` herunter.\nDieses enthält die Modpack-Konfiguration.",
+      image: "install1.png",
+      mrpack: true,
     },
     {
       title: "Schritt 2: Neue Instanz erstellen",
       desc: "Öffne den Launcher und erstelle eine neue Instanz.\nWähle die gewünschte Minecraft-Version.",
+      image: "install2.png",
+      mrpack: false,
     },
     {
       title: "Schritt 3: Mrpack importieren",
       desc: "Klicke auf `Import` und wähle die heruntergeladene `.mrpack`-Datei aus.\nDie Modifikationen werden automatisch übernommen.",
+      image: "install3.png",
+      mrpack: true,
     },
     {
       title: "Schritt 4: Instanz-Einstellungen öffnen",
       desc: isModrinth
-        ? "Klicke auf die drei Punkte (`⋯`) → `Einstellungen`."
-        : "Rechtsklick auf die Instanz → `Einstellungen`.",
+        ? 'Klicke auf die drei Punkte (`⋯`) → `Einstellungen`.'
+        : 'Rechtsklick auf die Instanz → `Einstellungen`.',
+      image: "install4.png",
+      mrpack: false,
     },
     {
       title: "Schritt 5: Einstellungen navigieren",
       desc: isModrinth
         ? "Gehe zum Reiter `Einstellungen`."
         : "Gehe zum Reiter `Custom Commands`.",
+      image: "install5.png",
+      mrpack: false,
     },
     {
       title: "Schritt 6: Pre-Launch Hook setzen",
       desc:
-        `Füge den untenstehenden Befehl in das ` +
-        (isModrinth ? "`Pre-Launch Hook`" : "`Pre-Launch Command`") +
-        ` Feld ein.`,
+        `Füge den Befehl in das `
+        + (isModrinth ? "`Pre-Launch Hook`" : "`Pre-Launch Command`")
+        + " Feld ein.",
+      image: "install6.png",
+      mrpack: false,
     },
     {
       title: "Schritt 7: Java Argumente setzen",
       desc: "Füge die untenstehenden Java-Argumente in das `JVM-Argumente` Feld ein.",
+      image: "install7.png",
+      mrpack: false,
     },
   ];
 
-  const files: { attachment: string; name: string }[] = [];
-  const embeds: EmbedBuilder[] = [];
+  await interaction.deferUpdate();
 
-  for (let i = 0; i < steps.length; i++) {
-    const imageName = `${folder}_install${i + 1}.png`;
-    files.push({
-      attachment: `./assets/${folder}/install${i + 1}.png`,
-      name: imageName,
-    });
-    embeds.push(
-      new EmbedBuilder()
-        .setTitle(steps[i].title)
-        .setDescription(steps[i].desc)
-        .setImage(`attachment://${imageName}`)
-        .setColor(0x00aeff),
-    );
+  let currentStep = 0;
+  const userId = interaction.user.id;
+
+  const renderStep = async (index: number) => {
+    const step = steps[index];
+    const isFirst = index === 0;
+    const isLast = index === steps.length - 1;
+
+    const row = new ActionRowBuilder<ButtonBuilder>();
+    if (!isFirst) {
+      row.addComponents(
+        new ButtonBuilder()
+          .setCustomId("prev-step")
+          .setLabel("← Zurück")
+          .setStyle(ButtonStyle.Secondary),
+      );
+    }
+    if (isLast) {
+      row.addComponents(
+        new ButtonBuilder()
+          .setCustomId("fertig")
+          .setLabel("Fertig")
+          .setStyle(ButtonStyle.Success),
+      );
+    } else {
+      row.addComponents(
+        new ButtonBuilder()
+          .setCustomId("next-step")
+          .setLabel("Weiter →")
+          .setStyle(ButtonStyle.Primary),
+      );
+    }
+
+    const imageName = `${folder}_${step.image}`;
+    const files: { attachment: string; name: string }[] = [
+      { attachment: `./assets/${folder}/${step.image}`, name: imageName },
+    ];
+    if (step.mrpack) {
+      files.push({
+        attachment: "./assets/MCModded.mrpack",
+        name: "MCModded.mrpack",
+      });
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle(step.title)
+      .setDescription(step.desc)
+      .setImage(`attachment://${imageName}`)
+      .setColor(0x00aeff);
+
+    let content = `### ✅ Pre-Launch Hook – ${launcherName}\n\n**${step.title}**`;
+    if (isLast) {
+      content +=
+        `\n\n**Pre-Launch Hook Befehl:**\n`
+        + `\`\`\`bash\n${PRE_LAUNCH_HOOK}\n\`\`\`\n\n`
+        + "**Java Argumente:**\n"
+        + `\`\`\`\n${JAVA_START_TAGS}\n\`\`\``;
+    }
+
+    return { content, embeds: [embed], components: [row], files };
+  };
+
+  await interaction.message.edit(await renderStep(0));
+
+  try {
+    while (true) {
+      const nav = await interaction.channel!.awaitMessageComponent({
+        filter: (i) =>
+          i.user.id === userId &&
+          (i.customId === "prev-step" ||
+            i.customId === "next-step" ||
+            i.customId === "fertig"),
+        componentType: ComponentType.Button,
+        time: 600_000,
+      });
+
+      if (nav.customId === "fertig") {
+        await nav.update({ content: "✅", embeds: [], components: [] });
+        break;
+      }
+
+      currentStep += nav.customId === "next-step" ? 1 : -1;
+      await nav.update(await renderStep(currentStep));
+    }
+  } catch {
+    // Timeout
   }
-
-  files.push({
-    attachment: "./assets/MCModded.mrpack",
-    name: "MCModded.mrpack",
-  });
-
-  await interaction.message.edit({
-    content:
-      `### ✅ Pre-Launch Hook – ${launcherName}\n\n` +
-      "**Pre-Launch Hook Befehl:**\n" +
-      `\`\`\`bash\n${PRE_LAUNCH_HOOK}\n\`\`\`\n\n` +
-      "**Java Argumente:**\n" +
-      `\`\`\`\n${JAVA_START_TAGS}\n\`\`\``,
-    embeds,
-    components: [buildFertigRow()],
-    files,
-  });
-
-  await waitForFertig(interaction);
 }
 
-async function handleOwnLauncher(interaction: ButtonInteraction) {
+async function handleOwnLauncher(
+  interaction: ButtonInteraction,
+) {
   await interaction.update({
     content:
-      "### Eigener Launcher\n\n" +
-      "**Pre-Launch Hook Befehl:**\n" +
-      `\`\`\`bash\n${PRE_LAUNCH_HOOK}\n\`\`\`\n\n` +
-      "Füge diesen Befehl in den Pre-Launch Hook Einstellungen deines Launchers ein.\n\n" +
-      "### ☕ Java Start Tags\n" +
-      "Füge diese JVM-Argumente in den Java-Einstellungen deines Launchers hinzu.\n\n" +
-      "**Wo finden?**\n" +
-      "- **Prism Launcher:** Einstellungen → Java → Java Arguments\n" +
-      "- **Modrinth:** Einstellungen → Java → JVM Arguments\n" +
-      "- **MultiMC:** Einstellungen → Java → JVM Arguments\n" +
-      "- **ATLauncher:** Settings → Java → Extra JVM Arguments\n\n" +
-      "**Tags:**\n" +
-      `\`\`\`bash\n${JAVA_START_TAGS}\n\`\`\``,
-    components: [buildFertigRow()],
+      "### Eigener Launcher\n\n"
+      + "**Pre-Launch Hook Befehl:**\n"
+      + `\`\`\`bash\n${PRE_LAUNCH_HOOK}\n\`\`\`\n\n`
+      + "Füge diesen Befehl in den Pre-Launch Hook Einstellungen deines Launchers ein.\n\n"
+      + "### ☕ Java Start Tags\n"
+      + "Füge diese JVM-Argumente in den Java-Einstellungen deines Launchers hinzu.\n\n"
+      + "**Wo finden?**\n"
+      + "- **Prism Launcher:** Einstellungen → Java → Java Arguments\n"
+      + "- **Modrinth:** Einstellungen → Java → JVM Arguments\n"
+      + "- **MultiMC:** Einstellungen → Java → JVM Arguments\n"
+      + "- **ATLauncher:** Settings → Java → Extra JVM Arguments\n\n"
+      + "**Tags:**\n"
+      + `\`\`\`bash\n${JAVA_START_TAGS}\n\`\`\``,
+    components: [
+      new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId("fertig")
+          .setLabel("Fertig")
+          .setStyle(ButtonStyle.Success),
+      ),
+    ],
   });
 
-  await waitForFertig(interaction);
-}
-
-function buildFertigRow(): ActionRowBuilder<ButtonBuilder> {
-  return new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId("fertig")
-      .setLabel("Fertig")
-      .setStyle(ButtonStyle.Success),
-  );
-}
-
-async function waitForFertig(interaction: ButtonInteraction) {
   try {
     const fertig = await interaction.channel!.awaitMessageComponent({
-      filter: (i) => i.customId === "fertig",
+      filter: (i) => i.user.id === interaction.user.id && i.customId === "fertig",
       componentType: ComponentType.Button,
       time: 300_000,
     });
