@@ -1,27 +1,32 @@
 import {
+  Client,
   EmbedBuilder,
-  Emoji,
   Events,
   Message,
   MessageType,
   Poll,
   TextChannel,
 } from "discord.js";
-import { client } from "../..";
 import { db } from "../../db";
 import { activePoll } from "../../db/schema";
 import { eq, InferSelectModel } from "drizzle-orm";
 import { getProjectById } from "../../lib/modrinth";
 import { PackwizModpack } from "../../lib/packwiz-modpack";
 
-client.on(Events.MessageCreate, async (message) => {
-  if (message.type === MessageType.PollResult) {
+let client: Client;
+
+export function registerPollFinishListener(discordClient: Client) {
+  client = discordClient;
+
+  client.on(Events.MessageCreate, async (message) => {
+    if (message.type !== MessageType.PollResult) return;
+
     const poll = await getOriginalPoll(message);
     if (!poll) return;
 
-    handlePollResult(poll);
-  }
-});
+    await handlePollResult(poll);
+  });
+}
 
 /**
  * Gets the original poll that a pollResult was for
@@ -29,8 +34,6 @@ client.on(Events.MessageCreate, async (message) => {
  * @returns
  */
 async function getOriginalPoll(pollResult: Message): Promise<Poll | undefined> {
-  if (!pollResult.poll) return;
-
   const pollMessageId = pollResult.reference?.messageId;
   const pollChannelId = pollResult.reference?.channelId;
   if (!pollMessageId || !pollChannelId) return;
@@ -70,8 +73,12 @@ async function handlePollResult(poll: Poll) {
     await modpack.addModrinthMod(storedPoll.projectId);
 
     await sendModAddedMessage(pollChannel, project.title ?? "eine neue Mod");
-  } catch {
-    await sendFailureMessage(pollChannel, project.title ?? "eine neue Mod");
+  } catch (error) {
+    await sendFailureMessage(
+      pollChannel,
+      project.title ?? "eine neue Mod",
+      error as string,
+    );
   } finally {
     await db.delete(activePoll).where(eq(activePoll.messageId, poll.messageId));
   }
@@ -99,11 +106,16 @@ async function sendModAddedMessage(channel: TextChannel, modName: string) {
   await channel.send({ embeds: [embed] });
 }
 
-async function sendFailureMessage(channel: TextChannel, modName: string) {
+async function sendFailureMessage(
+  channel: TextChannel,
+  modName: string,
+  error: string,
+) {
   const embed = new EmbedBuilder()
     .setTitle(`Failed to Add ${modName}`)
     .setDescription(
-      "The mod could not be added to the modpack. No changes were made.",
+      "The mod could not be added to the modpack. No changes were made.\n" +
+        error,
     )
     .setColor("Red");
 

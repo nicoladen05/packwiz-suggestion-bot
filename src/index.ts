@@ -3,13 +3,17 @@ import { Client } from "./client";
 import { loadCommands } from "./load-commands";
 import { handleSetupModalSubmit } from "./commands/admin/setup";
 import { startup } from "./utils/startup";
+import { registerPollFinishListener } from "./utils/poll/poll-finish-listener";
 
 const commands = await loadCommands();
 
 export const client = new Client(
-  { intents: [GatewayIntentBits.Guilds] },
+  { intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] },
   commands,
 );
+
+registerPollFinishListener(client);
+
 client.once(Events.ClientReady, (client) => {
   console.log(`Logged in as ${client.user?.tag}`);
 });

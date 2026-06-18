@@ -41,6 +41,11 @@ export async function sendPoll(
     finishesAt: message.poll!.expiresAt!.toISOString(),
     projectId: project.project_id,
   });
+
+  // EVERYTHING BELOW THIS IS FOR DEBUGGING
+  await new Promise((resolve) => setTimeout(resolve, 10000));
+
+  await message.poll?.end();
 }
 
 function buildModEmbed(project: ModrinthProject): EmbedBuilder {

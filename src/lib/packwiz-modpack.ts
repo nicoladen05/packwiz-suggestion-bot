@@ -4,9 +4,14 @@ import { mkdir, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { execa } from "execa";
 import PQueue from "p-queue";
+import { createHash } from "node:crypto";
 import { db } from "../db";
 import { modpack } from "../db/schema";
 import { eq } from "drizzle-orm";
+
+const BASE_REPO_PATH = process.env.REPOS_PATH ?? "/tmp/packwiz-repos";
+const BASE_WORKTREE_PATH =
+  process.env.WORKTREE_PATH ?? "/tmp/packwiz-worktrees";
 
 export const packwizOperationQueue = new PQueue({ concurrency: 3 });
 
@@ -18,13 +23,13 @@ export class PackwizModpack {
   private repoPath: string;
   private worktreePath: string;
 
-  private git: SimpleGit;
+  private git!: SimpleGit;
 
   constructor(repoUrl: string) {
     this.repoUrl = repoUrl;
-    this.repoPath = process.env.REPOS_PATH ?? "/tmp/packwiz-repos";
-    this.worktreePath = process.env.WORKTREE_PATH ?? "/tmp/packwiz-worktrees";
-    this.git = simpleGit(this.repoPath);
+    const repoId = createHash("sha1").update(repoUrl).digest("hex");
+    this.repoPath = path.join(BASE_REPO_PATH, repoId);
+    this.worktreePath = path.join(BASE_WORKTREE_PATH, repoId);
 
     this.initPromise = this.downloadRepository();
   }
@@ -50,13 +55,19 @@ export class PackwizModpack {
     return (await readdir(path)).length === 0;
   }
 
-  private async downloadRepository(): Promise<void> {
+  private async ensureDirectoriesExist(): Promise<void> {
     try {
       await mkdir(this.repoPath, { recursive: true });
       await mkdir(this.worktreePath, { recursive: true });
     } catch (error) {
       console.error("Could not create repository directories:", error);
     }
+  }
+
+  private async downloadRepository(): Promise<void> {
+    await this.ensureDirectoriesExist();
+
+    this.git = simpleGit(this.repoPath);
 
     if (await this.folderIsEmpty(this.repoPath)) {
       await this.git.clone(
