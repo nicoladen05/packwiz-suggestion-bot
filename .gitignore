@@ -1,3 +1,4 @@
 .env
 repo/
 node_modules/
+local.db

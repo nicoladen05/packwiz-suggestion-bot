@@ -12,6 +12,7 @@ import { eq } from "drizzle-orm";
 const BASE_REPO_PATH = process.env.REPOS_PATH ?? "/tmp/packwiz-repos";
 const BASE_WORKTREE_PATH =
   process.env.WORKTREE_PATH ?? "/tmp/packwiz-worktrees";
+const GITHUB_HOST = "github.com";
 
 export const packwizOperationQueue = new PQueue({ concurrency: 3 });
 
@@ -20,13 +21,15 @@ export class PackwizModpack {
   private initPromise: Promise<void>;
 
   private repoUrl: string;
+  private accessToken: string;
   private repoPath: string;
   private worktreePath: string;
 
   private git!: SimpleGit;
 
-  constructor(repoUrl: string) {
+  constructor(repoUrl: string, accessToken: string) {
     this.repoUrl = repoUrl;
+    this.accessToken = accessToken;
     const repoId = createHash("sha1").update(repoUrl).digest("hex");
     this.repoPath = path.join(BASE_REPO_PATH, repoId);
     this.worktreePath = path.join(BASE_WORKTREE_PATH, repoId);
@@ -42,13 +45,15 @@ export class PackwizModpack {
   public static async getForServer(
     serverId: string,
   ): Promise<PackwizModpack | undefined> {
-    const repoUrl = await db
-      .select()
+    const modpackConfig = await db
+      .select({ url: modpack.url, accessToken: modpack.accessToken })
       .from(modpack)
       .where(eq(modpack.serverId, serverId))
-      .then((modpack) => (modpack.length != 0 ? modpack[0].url : null));
+      .then((modpacks) => (modpacks.length != 0 ? modpacks[0] : null));
 
-    return repoUrl ? new PackwizModpack(repoUrl) : undefined;
+    return modpackConfig
+      ? new PackwizModpack(modpackConfig.url, modpackConfig.accessToken)
+      : undefined;
   }
 
   private async folderIsEmpty(path: string): Promise<boolean> {
@@ -96,6 +101,36 @@ export class PackwizModpack {
     return worktreePath;
   }
 
+  private getAuthenticatedGithubUrl(): string {
+    if (this.accessToken.length === 0) {
+      throw new Error("No GitHub access token configured for this server");
+    }
+
+    const repoUrl = new URL(this.repoUrl);
+    if (repoUrl.hostname !== GITHUB_HOST) {
+      throw new Error(`Packwiz repository must be hosted on ${GITHUB_HOST}`);
+    }
+
+    const [owner, repo, ...extraPathParts] = repoUrl.pathname
+      .split("/")
+      .filter((part) => part.length !== 0);
+
+    if (!owner || !repo || extraPathParts.length !== 0) {
+      throw new Error("Packwiz repository URL must be a GitHub owner/repo URL");
+    }
+
+    const repoName = repo.endsWith(".git") ? repo : `${repo}.git`;
+    return `https://x-access-token:${encodeURIComponent(this.accessToken)}@${GITHUB_HOST}/${owner}/${repoName}`;
+  }
+
+  private redactAccessToken(value: string): string {
+    if (this.accessToken.length === 0) return value;
+
+    return value
+      .replaceAll(this.accessToken, "[redacted]")
+      .replaceAll(encodeURIComponent(this.accessToken), "[redacted]");
+  }
+
   async addModrinthMod(slug: string): Promise<boolean> {
     if (!this.initialized) {
       await this.initPromise;
@@ -114,13 +149,13 @@ export class PackwizModpack {
       await worktreeGit.add("-A");
       await worktreeGit.commit(`add mod: ${slug}`);
 
-      console.log(await worktreeGit.log());
-
-      // await worktreeGit.push("origin", branchName);
+      await worktreeGit.push(this.getAuthenticatedGithubUrl(), branchName);
 
       return true;
     } catch (error) {
-      console.warn(`Failed to add modrinth mod ${slug}: `, error);
+      console.warn(
+        `Failed to add modrinth mod ${slug}: ${this.redactAccessToken(error instanceof Error ? error.message : String(error))}`,
+      );
       return false;
     } finally {
       // Clean up the worktree

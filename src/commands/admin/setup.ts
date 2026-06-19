@@ -65,6 +65,22 @@ export default {
 
     modal.addLabelComponents(packUrlLabel);
 
+    // GitHub access token input
+    const githubAccessTokenInput = new TextInputBuilder()
+      .setCustomId("githubAccessToken")
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder("github_pat_...")
+      .setRequired(true);
+
+    const githubAccessTokenLabel = new LabelBuilder()
+      .setLabel("GitHub access token")
+      .setDescription(
+        "A personal access token with write access to the modpack repository.",
+      )
+      .setTextInputComponent(githubAccessTokenInput);
+
+    modal.addLabelComponents(githubAccessTokenLabel);
+
     // Channel input
     const channelSelect = new ChannelSelectMenuBuilder()
       .setCustomId("channel")
@@ -107,6 +123,11 @@ export async function handleSetupModalSubmit(
 
   if (!selectedChannel) return;
 
+  const packwizUrl = interaction.fields.getTextInputValue("packwizURL").trim();
+  const accessToken = interaction.fields
+    .getTextInputValue("githubAccessToken")
+    .trim();
+
   if (!alreadyConfigured) {
     await Promise.all([
       db.insert(server).values({
@@ -115,7 +136,8 @@ export async function handleSetupModalSubmit(
       }),
       db.insert(modpack).values({
         serverId: serverId,
-        url: interaction.fields.getTextInputValue("packwizURL"),
+        url: packwizUrl,
+        accessToken,
       }),
     ]);
   } else {
@@ -126,7 +148,7 @@ export async function handleSetupModalSubmit(
         .where(eq(server.serverId, serverId)),
       db
         .update(modpack)
-        .set({ url: interaction.fields.getTextInputValue("packwizURL") })
+        .set({ url: packwizUrl, accessToken })
         .where(eq(modpack.serverId, serverId)),
     ]);
   }

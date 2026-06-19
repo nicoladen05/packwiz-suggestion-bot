@@ -10,6 +10,7 @@ export const modpack = sqliteTable("modpack", {
     .primaryKey()
     .references(() => server.serverId),
   url: text().notNull(),
+  accessToken: text().notNull(),
 });
 
 export const activePoll = sqliteTable("active_poll", {
