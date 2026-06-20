@@ -1,7 +1,7 @@
 import { Events, GatewayIntentBits, MessageFlags } from "discord.js";
 import { Client } from "./client";
 import { loadCommands } from "./load-commands";
-import { handleSetupModalSubmit } from "./commands/admin/setup";
+import { handleSetupModalSubmit } from "./utils/setup/modal-submit";
 import { startup } from "./utils/startup";
 import { registerPollFinishListener } from "./utils/poll/poll-finish-listener";
 
