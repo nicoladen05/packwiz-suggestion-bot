@@ -104,14 +104,7 @@ export class PackwizModpack {
     // updates local main from remote
     await this.git.raw(["fetch", "origin", "staging:staging"]);
 
-    await this.git.raw([
-      "worktree",
-      "add",
-      "-b",
-      branchName,
-      worktreePath,
-      "staging",
-    ]);
+    await this.git.raw(["worktree", "add", worktreePath, "staging"]);
 
     return worktreePath;
   }
