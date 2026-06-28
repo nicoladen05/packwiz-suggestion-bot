@@ -155,8 +155,7 @@ export class PackwizModpack {
       await this.initPromise;
     }
 
-    const worktreeName = this.generateWorktreeName();
-    const worktreePath = await this.makeWorktree(worktreeName);
+    const worktreePath = await this.makeWorktree("staging");
 
     try {
       await execa("packwiz", ["mr", "add", slug, "-y"], {
