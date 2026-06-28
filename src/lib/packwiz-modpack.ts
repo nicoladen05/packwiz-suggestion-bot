@@ -14,6 +14,9 @@ const BASE_WORKTREE_PATH =
   process.env.WORKTREE_PATH ?? "/tmp/packwiz-worktrees";
 const GITHUB_HOST = "github.com";
 
+const GIT_NAME = "Packwiz Bot";
+const GIT_EMAIL = "packwiz@tn.bot";
+
 export const packwizOperationQueue = new PQueue({ concurrency: 3 });
 
 export class PackwizModpack {
@@ -73,6 +76,8 @@ export class PackwizModpack {
     await this.ensureDirectoriesExist();
 
     this.git = simpleGit(this.repoPath);
+    this.git.addConfig("user.name", GIT_NAME);
+    this.git.addConfig("user.email", GIT_EMAIL);
 
     if (await this.folderIsEmpty(this.repoPath)) {
       await this.git.clone(
@@ -145,6 +150,8 @@ export class PackwizModpack {
       });
 
       const worktreeGit = simpleGit(worktreePath);
+      worktreeGit.addConfig("user.name", GIT_NAME);
+      worktreeGit.addConfig("user.email", GIT_EMAIL);
 
       await worktreeGit.add("-A");
       await worktreeGit.commit(`add mod: ${slug}`);
