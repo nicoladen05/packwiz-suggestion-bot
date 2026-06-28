@@ -29,7 +29,7 @@ export async function sendPoll(
       { text: "Ja, hinzufügen", emoji: "\u{1F44D}" }, // 👍
       { text: "Nein, nicht hinzufügen", emoji: "\u{1F44E}" }, // 👎
     ],
-    duration: 1,
+    duration: 24,
     allowMultiselect: false,
   };
 
@@ -42,10 +42,10 @@ export async function sendPoll(
     projectId: project.project_id,
   });
 
-  // EVERYTHING BELOW THIS IS FOR DEBUGGING
-  await new Promise((resolve) => setTimeout(resolve, 10000));
+  // EVERYTHING BELOW THIS IS FOR DEBUGGING (POLLS ONLY LAST 10 SECONDS)
+  // await new Promise((resolve) => setTimeout(resolve, 10000));
 
-  await message.poll?.end();
+  // await message.poll?.end();
 }
 
 function buildModEmbed(project: ModrinthProject): EmbedBuilder {
