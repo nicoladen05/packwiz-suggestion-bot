@@ -28,7 +28,8 @@ const LAUNCHERS = {
 } as const;
 
 const PRE_LAUNCH_HOOK = `java -jar packwiz-installer-bootstrap.jar https://raw.githubusercontent.com/TobiHxD/CreateModpack/refs/heads/main/pack.toml`;
-const PRISM_IMPORT_URL = "https://github.com/TobiHxD/CreateModpack/raw/refs/heads/main/PrismLauncher.zip";
+const PRISM_IMPORT_URL =
+  "https://github.com/TobiHxD/CreateModpack/raw/refs/heads/main/PrismLauncher.zip";
 
 const JAVA_START_TAGS = "-XX:+UseZGC -XX:+ZGenerational";
 const TIMEOUT = 600_000;
@@ -41,7 +42,7 @@ const installSteps = [
     },
     {
       modrinth:
-        "Lade das beigefügte `.mrpack` herunter.\nDieses enthält die Modpack-Konfiguration.",
+        "Lade das beigefügte `.mrpack` herunter, öffne Modrinth und erstelle eine neue Instanz.",
       prism: "Klicke auf `Instanz erstellen`.",
     },
     "install1.png",
@@ -53,8 +54,7 @@ const installSteps = [
       prism: "Schritt 2: Importieren auswählen",
     },
     {
-      modrinth:
-        "Öffne den Launcher und erstelle eine neue Instanz.\nWähle die gewünschte Minecraft-Version.",
+      modrinth: "",
       prism: "Klicke links auf `Importieren`.",
     },
     "install2.png",
@@ -76,8 +76,7 @@ const installSteps = [
   [
     "Schritt 4: Instanz-Einstellungen öffnen",
     {
-      modrinth: "Klicke auf die drei Punkte (`⋯`) → `Einstellungen`.",
-      prism: "Rechtsklick auf die Instanz → `Einstellungen`.",
+      modrinth: "Öffne die eben erstellte Instanz",
     },
     "install4.png",
     false,
@@ -85,8 +84,7 @@ const installSteps = [
   [
     "Schritt 5: Einstellungen navigieren",
     {
-      modrinth: "Gehe zum Reiter `Einstellungen`.",
-      prism: "Gehe zum Reiter `Custom Commands`.",
+      modrinth: "Öffne die Instanzeinstellungen",
     },
     "install5.png",
     false,
@@ -94,15 +92,14 @@ const installSteps = [
   [
     "Schritt 6: Pre-Launch Hook setzen",
     {
-      modrinth: "Füge den Befehl in das `Pre-Launch Hook` Feld ein.",
-      prism: "Füge den Befehl in das `Pre-Launch Command` Feld ein.",
+      modrinth: `Füge den Befehl in das "Pre-Launch Hook" Feld ein.\n\`\`\`${PRE_LAUNCH_HOOK}\`\`\``,
     },
     "install6.png",
     false,
   ],
   [
     "Schritt 7: Java Argumente setzen",
-    "Füge die untenstehenden Java-Argumente in das `JVM-Argumente` Feld ein.",
+    'Füge die untenstehenden Java-Argumente in das "JVM-Argumente" Feld ein.',
     "install7.png",
     false,
   ],
@@ -231,18 +228,19 @@ function renderStep(launcher: (typeof LAUNCHERS)[LauncherId], index: number) {
 
   let content = `### ✅ Pre-Launch Hook – ${launcher.name}\n\n**${stepTitle}**`;
   if (isLast && launcher.folder !== "prism") {
-    content += `\n\n**Pre-Launch Hook Befehl:**\n\`\`\`bash\n${PRE_LAUNCH_HOOK}\n\`\`\`\n\n**Java Argumente:**\n\`\`\`\n${JAVA_START_TAGS}\n\`\`\``;
+    content += `\n\n**Java Argumente:**\n\`\`\`\n${JAVA_START_TAGS}\n\`\`\``;
   }
+
+  const embed = new EmbedBuilder()
+    .setTitle(stepTitle)
+    .setImage(`attachment://${imageName}`)
+    .setColor(0x00aeff);
+
+  if (desc) embed.setDescription(desc);
 
   return {
     content,
-    embeds: [
-      new EmbedBuilder()
-        .setTitle(stepTitle)
-        .setDescription(desc)
-        .setImage(`attachment://${imageName}`)
-        .setColor(0x00aeff),
-    ],
+    embeds: [embed],
     components: [
       buttonRow([
         ...(isFirst
