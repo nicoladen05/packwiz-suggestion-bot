@@ -178,8 +178,6 @@ async function showPreLaunchHook(
     },
   ];
 
-  await interaction.deferUpdate();
-
   let currentStep = 0;
   const userId = interaction.user.id;
 
@@ -242,7 +240,7 @@ async function showPreLaunchHook(
     return { content, embeds: [embed], components: [row], files };
   };
 
-  await interaction.message.edit(await renderStep(0));
+  await interaction.update(await renderStep(0));
 
   try {
     while (true) {
