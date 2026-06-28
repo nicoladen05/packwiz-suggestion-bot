@@ -9,19 +9,44 @@ import {
   MessageFlags,
   SlashCommandBuilder,
 } from "discord.js";
+import type { Message } from "discord.js";
 import type { Command } from "../../client";
 
-const MODRINTH_DOWNLOAD = "https://modrinth.com/app";
-const MODRINTH_TUTORIAL = "https://www.youtube.com/watch?v=EXAMPLE_MODRINTH";
-const PRISM_DOWNLOAD = "https://prismlauncher.org/download";
-const PRISM_TUTORIAL = "https://www.youtube.com/watch?v=EXAMPLE_PRISM";
+const LAUNCHERS = {
+  modrinth: {
+    name: "Modrinth",
+    folder: "modrinth",
+    download: "https://modrinth.com/app",
+    tutorial: "https://www.youtube.com/watch?v=EXAMPLE_MODRINTH",
+  },
+  prism: {
+    name: "Prism Launcher",
+    folder: "prism",
+    download: "https://prismlauncher.org/download",
+    tutorial: "https://www.youtube.com/watch?v=EXAMPLE_PRISM",
+  },
+} as const;
 
 const PRE_LAUNCH_HOOK = `#!/bin/bash
 cd "$INST_DIR" || exit 1
 git pull origin main
 packwiz update`;
 
-const JAVA_START_TAGS = `-Xmx4G -Xms2G -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:G1NewSizePercent=50 -XX:G1MaxNewSizePercent=80 -XX:G1HeapRegionSize=32M`;
+const JAVA_START_TAGS = "-Xmx4G -Xms2G -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:G1NewSizePercent=50 -XX:G1MaxNewSizePercent=80 -XX:G1HeapRegionSize=32M";
+const TIMEOUT = 600_000;
+
+const installSteps = [
+  ["Schritt 1: Mrpack herunterladen", "Lade das beigefügte `.mrpack` herunter.\nDieses enthält die Modpack-Konfiguration.", "install1.png", true],
+  ["Schritt 2: Neue Instanz erstellen", "Öffne den Launcher und erstelle eine neue Instanz.\nWähle die gewünschte Minecraft-Version.", "install2.png", false],
+  ["Schritt 3: Mrpack importieren", "Klicke auf `Import` und wähle die heruntergeladene `.mrpack`-Datei aus.\nDie Modifikationen werden automatisch übernommen.", "install3.png", true],
+  ["Schritt 4: Instanz-Einstellungen öffnen", { modrinth: "Klicke auf die drei Punkte (`⋯`) → `Einstellungen`.", prism: "Rechtsklick auf die Instanz → `Einstellungen`." }, "install4.png", false],
+  ["Schritt 5: Einstellungen navigieren", { modrinth: "Gehe zum Reiter `Einstellungen`.", prism: "Gehe zum Reiter `Custom Commands`." }, "install5.png", false],
+  ["Schritt 6: Pre-Launch Hook setzen", { modrinth: "Füge den Befehl in das `Pre-Launch Hook` Feld ein.", prism: "Füge den Befehl in das `Pre-Launch Command` Feld ein." }, "install6.png", false],
+  ["Schritt 7: Java Argumente setzen", "Füge die untenstehenden Java-Argumente in das `JVM-Argumente` Feld ein.", "install7.png", false],
+] as const;
+
+type LauncherId = keyof typeof LAUNCHERS;
+type ButtonId = LauncherId | "own-launcher" | "done" | "fertig" | "prev-step" | "next-step";
 
 export default {
   data: new SlashCommandBuilder()
@@ -29,51 +54,25 @@ export default {
     .setDescription("Full tutorial on how to install and setup everything."),
 
   execute: async (interaction: ChatInputCommandInteraction) => {
-    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder()
-        .setCustomId("modrinth")
-        .setLabel("Modrinth")
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId("prism")
-        .setLabel("Prism Launcher")
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId("own-launcher")
-        .setLabel("Eigener Launcher")
-        .setStyle(ButtonStyle.Secondary),
-    );
-
     const response = await interaction.reply({
       content: "### Wähle deinen Launcher aus\nWelchen Launcher verwendest du?",
-      components: [row],
+      components: [buttonRow([
+        ["modrinth", "Modrinth", ButtonStyle.Primary],
+        ["prism", "Prism Launcher", ButtonStyle.Primary],
+        ["own-launcher", "Eigener Launcher", ButtonStyle.Secondary],
+      ])],
       flags: MessageFlags.Ephemeral,
       withResponse: true,
     });
 
+    const message = response.resource?.message;
+    if (!message) return;
+
     try {
-      if (!response.resource?.message) return;
+      const choice = await waitForButton(message, interaction.user.id, ["modrinth", "prism", "own-launcher"], 120_000);
+      if (choice.customId === "own-launcher") return handleOwnLauncher(choice);
 
-      const choice = await response.resource.message.awaitMessageComponent({
-        filter: (i) =>
-          i.customId === "modrinth" ||
-          i.customId === "prism" ||
-          i.customId === "own-launcher",
-        componentType: ComponentType.Button,
-        time: 120_000,
-      });
-
-      switch (choice.customId) {
-        case "modrinth":
-          await handleLauncher(choice, "Modrinth", MODRINTH_DOWNLOAD, MODRINTH_TUTORIAL);
-          break;
-        case "prism":
-          await handleLauncher(choice, "Prism Launcher", PRISM_DOWNLOAD, PRISM_TUTORIAL);
-          break;
-        case "own-launcher":
-          await handleOwnLauncher(choice);
-          break;
-      }
+      await handleLauncher(choice, LAUNCHERS[choice.customId as LauncherId]);
     } catch {
       // Timeout
     }
@@ -82,38 +81,20 @@ export default {
 
 async function handleLauncher(
   interaction: ButtonInteraction,
-  launcherName: string,
-  downloadUrl: string,
-  tutorialUrl: string,
+  launcher: (typeof LAUNCHERS)[LauncherId],
 ) {
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setLabel("Download")
-      .setStyle(ButtonStyle.Link)
-      .setURL(downloadUrl),
-    new ButtonBuilder()
-      .setLabel("YouTube Tutorial")
-      .setStyle(ButtonStyle.Link)
-      .setURL(tutorialUrl),
-    new ButtonBuilder()
-      .setCustomId("done")
-      .setLabel("Fertig")
-      .setStyle(ButtonStyle.Success),
-  );
-
   await interaction.update({
-    content: `### ${launcherName}\nLade den Launcher herunter und installiere Minecraft. Folge dem Tutorial falls nötig.`,
-    components: [row],
+    content: `### ${launcher.name}\nLade den Launcher herunter und installiere Minecraft. Folge dem Tutorial falls nötig.`,
+    components: [new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder().setLabel("Download").setStyle(ButtonStyle.Link).setURL(launcher.download),
+      new ButtonBuilder().setLabel("YouTube Tutorial").setStyle(ButtonStyle.Link).setURL(launcher.tutorial),
+      new ButtonBuilder().setCustomId("done").setLabel("Fertig").setStyle(ButtonStyle.Success),
+    )],
   });
 
   try {
-    const done = await interaction.channel!.awaitMessageComponent({
-      filter: (i) => i.user.id === interaction.user.id && i.customId === "done",
-      componentType: ComponentType.Button,
-      time: 600_000,
-    });
-
-    await showPreLaunchHook(done, launcherName);
+    const done = await waitForButton(interaction.message, interaction.user.id, ["done"], TIMEOUT);
+    await showPreLaunchHook(done, launcher);
   } catch {
     // Timeout
   }
@@ -121,155 +102,60 @@ async function handleLauncher(
 
 async function showPreLaunchHook(
   interaction: ButtonInteraction,
-  launcherName: string,
+  launcher: (typeof LAUNCHERS)[LauncherId],
 ) {
-  const isModrinth = launcherName === "Modrinth";
-  const folder = isModrinth ? "modrinth" : "prism";
-
-  const steps = [
-    {
-      title: "Schritt 1: Mrpack herunterladen",
-      desc: "Lade das beigefügte `.mrpack` herunter.\nDieses enthält die Modpack-Konfiguration.",
-      image: "install1.png",
-      mrpack: true,
-    },
-    {
-      title: "Schritt 2: Neue Instanz erstellen",
-      desc: "Öffne den Launcher und erstelle eine neue Instanz.\nWähle die gewünschte Minecraft-Version.",
-      image: "install2.png",
-      mrpack: false,
-    },
-    {
-      title: "Schritt 3: Mrpack importieren",
-      desc: "Klicke auf `Import` und wähle die heruntergeladene `.mrpack`-Datei aus.\nDie Modifikationen werden automatisch übernommen.",
-      image: "install3.png",
-      mrpack: true,
-    },
-    {
-      title: "Schritt 4: Instanz-Einstellungen öffnen",
-      desc: isModrinth
-        ? 'Klicke auf die drei Punkte (`⋯`) → `Einstellungen`.'
-        : 'Rechtsklick auf die Instanz → `Einstellungen`.',
-      image: "install4.png",
-      mrpack: false,
-    },
-    {
-      title: "Schritt 5: Einstellungen navigieren",
-      desc: isModrinth
-        ? "Gehe zum Reiter `Einstellungen`."
-        : "Gehe zum Reiter `Custom Commands`.",
-      image: "install5.png",
-      mrpack: false,
-    },
-    {
-      title: "Schritt 6: Pre-Launch Hook setzen",
-      desc:
-        `Füge den Befehl in das `
-        + (isModrinth ? "`Pre-Launch Hook`" : "`Pre-Launch Command`")
-        + " Feld ein.",
-      image: "install6.png",
-      mrpack: false,
-    },
-    {
-      title: "Schritt 7: Java Argumente setzen",
-      desc: "Füge die untenstehenden Java-Argumente in das `JVM-Argumente` Feld ein.",
-      image: "install7.png",
-      mrpack: false,
-    },
-  ];
-
   let currentStep = 0;
-  const userId = interaction.user.id;
 
-  const renderStep = async (index: number) => {
-    const step = steps[index];
-    const isFirst = index === 0;
-    const isLast = index === steps.length - 1;
-
-    const row = new ActionRowBuilder<ButtonBuilder>();
-    if (!isFirst) {
-      row.addComponents(
-        new ButtonBuilder()
-          .setCustomId("prev-step")
-          .setLabel("← Zurück")
-          .setStyle(ButtonStyle.Secondary),
-      );
-    }
-    if (isLast) {
-      row.addComponents(
-        new ButtonBuilder()
-          .setCustomId("fertig")
-          .setLabel("Fertig")
-          .setStyle(ButtonStyle.Success),
-      );
-    } else {
-      row.addComponents(
-        new ButtonBuilder()
-          .setCustomId("next-step")
-          .setLabel("Weiter →")
-          .setStyle(ButtonStyle.Primary),
-      );
-    }
-
-    const imageName = `${folder}_${step.image}`;
-    const files: { attachment: string; name: string }[] = [
-      { attachment: `./assets/${folder}/${step.image}`, name: imageName },
-    ];
-    if (step.mrpack) {
-      files.push({
-        attachment: "./assets/MCModded.mrpack",
-        name: "MCModded.mrpack",
-      });
-    }
-
-    const embed = new EmbedBuilder()
-      .setTitle(step.title)
-      .setDescription(step.desc)
-      .setImage(`attachment://${imageName}`)
-      .setColor(0x00aeff);
-
-    let content = `### ✅ Pre-Launch Hook – ${launcherName}\n\n**${step.title}**`;
-    if (isLast) {
-      content +=
-        `\n\n**Pre-Launch Hook Befehl:**\n`
-        + `\`\`\`bash\n${PRE_LAUNCH_HOOK}\n\`\`\`\n\n`
-        + "**Java Argumente:**\n"
-        + `\`\`\`\n${JAVA_START_TAGS}\n\`\`\``;
-    }
-
-    return { content, embeds: [embed], components: [row], files };
-  };
-
-  await interaction.update(await renderStep(0));
+  await interaction.update(renderStep(launcher, currentStep));
 
   try {
     while (true) {
-      const nav = await interaction.channel!.awaitMessageComponent({
-        filter: (i) =>
-          i.user.id === userId &&
-          (i.customId === "prev-step" ||
-            i.customId === "next-step" ||
-            i.customId === "fertig"),
-        componentType: ComponentType.Button,
-        time: 600_000,
-      });
-
+      const nav = await waitForButton(interaction.message, interaction.user.id, ["prev-step", "next-step", "fertig"], TIMEOUT);
       if (nav.customId === "fertig") {
-        await nav.update({ content: "✅", embeds: [], components: [] });
-        break;
+        await finish(nav);
+        return;
       }
 
       currentStep += nav.customId === "next-step" ? 1 : -1;
-      await nav.update(await renderStep(currentStep));
+      await nav.update(renderStep(launcher, currentStep));
     }
   } catch {
     // Timeout
   }
 }
 
-async function handleOwnLauncher(
-  interaction: ButtonInteraction,
-) {
+function renderStep(launcher: (typeof LAUNCHERS)[LauncherId], index: number) {
+  const [title, description, image, includeMrpack] = installSteps[index];
+  const isFirst = index === 0;
+  const isLast = index === installSteps.length - 1;
+  const imageName = `${launcher.folder}_${image}`;
+  const desc = typeof description === "string" ? description : description[launcher.folder];
+
+  let content = `### ✅ Pre-Launch Hook – ${launcher.name}\n\n**${title}**`;
+  if (isLast) {
+    content += `\n\n**Pre-Launch Hook Befehl:**\n\`\`\`bash\n${PRE_LAUNCH_HOOK}\n\`\`\`\n\n**Java Argumente:**\n\`\`\`\n${JAVA_START_TAGS}\n\`\`\``;
+  }
+
+  return {
+    content,
+    embeds: [new EmbedBuilder()
+      .setTitle(title)
+      .setDescription(desc)
+      .setImage(`attachment://${imageName}`)
+      .setColor(0x00aeff)],
+    components: [buttonRow([
+      ...isFirst ? [] : [["prev-step", "← Zurück", ButtonStyle.Secondary] as const],
+      isLast ? ["fertig", "Fertig", ButtonStyle.Success] : ["next-step", "Weiter →", ButtonStyle.Primary],
+    ])],
+    attachments: [],
+    files: [
+      { attachment: `./assets/${launcher.folder}/${image}`, name: imageName },
+      ...includeMrpack ? [{ attachment: "./assets/MCModded.mrpack", name: "MCModded.mrpack" }] : [],
+    ],
+  };
+}
+
+async function handleOwnLauncher(interaction: ButtonInteraction) {
   await interaction.update({
     content:
       "### Eigener Launcher\n\n"
@@ -285,25 +171,36 @@ async function handleOwnLauncher(
       + "- **ATLauncher:** Settings → Java → Extra JVM Arguments\n\n"
       + "**Tags:**\n"
       + `\`\`\`bash\n${JAVA_START_TAGS}\n\`\`\``,
-    components: [
-      new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-          .setCustomId("fertig")
-          .setLabel("Fertig")
-          .setStyle(ButtonStyle.Success),
-      ),
-    ],
+    components: [buttonRow([["fertig", "Fertig", ButtonStyle.Success]])],
   });
 
   try {
-    const fertig = await interaction.channel!.awaitMessageComponent({
-      filter: (i) => i.user.id === interaction.user.id && i.customId === "fertig",
-      componentType: ComponentType.Button,
-      time: 300_000,
-    });
-
-    await fertig.update({ content: "✅", embeds: [], components: [] });
+    const fertig = await waitForButton(interaction.message, interaction.user.id, ["fertig"], 300_000);
+    await finish(fertig);
   } catch {
     // Timeout
   }
+}
+
+function buttonRow(buttons: readonly (readonly [ButtonId, string, ButtonStyle])[]) {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    ...buttons.map(([id, label, style]) => new ButtonBuilder().setCustomId(id).setLabel(label).setStyle(style)),
+  );
+}
+
+function waitForButton(
+  message: Message,
+  userId: string,
+  customIds: readonly ButtonId[],
+  time: number,
+) {
+  return message.awaitMessageComponent({
+    filter: (i) => i.user.id === userId && customIds.includes(i.customId as ButtonId),
+    componentType: ComponentType.Button,
+    time,
+  });
+}
+
+function finish(interaction: ButtonInteraction) {
+  return interaction.update({ content: "✅", embeds: [], components: [], attachments: [] });
 }
