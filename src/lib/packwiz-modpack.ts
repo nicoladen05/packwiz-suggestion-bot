@@ -102,7 +102,7 @@ export class PackwizModpack {
     );
 
     // updates local main from remote
-    await this.git.raw(["fetch", "origin", "main:main"]);
+    await this.git.raw(["fetch", "origin", "staging:staging"]);
 
     await this.git.raw([
       "worktree",
@@ -110,7 +110,7 @@ export class PackwizModpack {
       "-b",
       branchName,
       worktreePath,
-      "main",
+      "staging",
     ]);
 
     return worktreePath;
@@ -155,8 +155,8 @@ export class PackwizModpack {
       await this.initPromise;
     }
 
-    const branchName = this.generateWorktreeName();
-    const worktreePath = await this.makeWorktree(branchName);
+    const worktreeName = this.generateWorktreeName();
+    const worktreePath = await this.makeWorktree(worktreeName);
 
     try {
       await execa("packwiz", ["mr", "add", slug, "-y"], {
@@ -170,7 +170,7 @@ export class PackwizModpack {
       await worktreeGit.add("-A");
       await worktreeGit.commit(`add mod: ${slug}`);
 
-      await worktreeGit.push(this.getAuthenticatedGithubUrl(), branchName);
+      await worktreeGit.push(this.getAuthenticatedGithubUrl(), "staging");
 
       return true;
     } catch (error) {
