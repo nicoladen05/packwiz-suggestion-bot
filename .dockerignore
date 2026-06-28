@@ -1,0 +1,7 @@
+.git
+.env
+node_modules
+local.db
+repo
+Dockerfile
+.dockerignore
