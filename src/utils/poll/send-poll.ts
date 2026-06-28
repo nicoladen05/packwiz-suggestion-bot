@@ -43,9 +43,9 @@ export async function sendPoll(
   });
 
   // EVERYTHING BELOW THIS IS FOR DEBUGGING (POLLS ONLY LAST 10 SECONDS)
-  // await new Promise((resolve) => setTimeout(resolve, 10000));
+  await new Promise((resolve) => setTimeout(resolve, 10000));
 
-  // await message.poll?.end();
+  await message.poll?.end();
 }
 
 function buildModEmbed(project: ModrinthProject): EmbedBuilder {

@@ -28,26 +28,48 @@ const LAUNCHERS = {
 } as const;
 
 const PRE_LAUNCH_HOOK = `java -jar packwiz-installer-bootstrap.jar https://raw.githubusercontent.com/TobiHxD/CreateModpack/refs/heads/main/pack.toml`;
+const PRISM_IMPORT_URL = "https://github.com/TobiHxD/CreateModpack/raw/refs/heads/main/PrismLauncher.zip";
 
 const JAVA_START_TAGS = "-XX:+UseZGC -XX:+ZGenerational";
 const TIMEOUT = 600_000;
 
 const installSteps = [
   [
-    "Schritt 1: Mrpack herunterladen",
-    "Lade das beigefügte `.mrpack` herunter.\nDieses enthält die Modpack-Konfiguration.",
+    {
+      modrinth: "Schritt 1: Mrpack herunterladen",
+      prism: "Schritt 1: Instanz erstellen",
+    },
+    {
+      modrinth:
+        "Lade das beigefügte `.mrpack` herunter.\nDieses enthält die Modpack-Konfiguration.",
+      prism: "Klicke auf `Instanz erstellen`.",
+    },
     "install1.png",
     true,
   ],
   [
-    "Schritt 2: Neue Instanz erstellen",
-    "Öffne den Launcher und erstelle eine neue Instanz.\nWähle die gewünschte Minecraft-Version.",
+    {
+      modrinth: "Schritt 2: Neue Instanz erstellen",
+      prism: "Schritt 2: Importieren auswählen",
+    },
+    {
+      modrinth:
+        "Öffne den Launcher und erstelle eine neue Instanz.\nWähle die gewünschte Minecraft-Version.",
+      prism: "Klicke links auf `Importieren`.",
+    },
     "install2.png",
     false,
   ],
   [
-    "Schritt 3: Mrpack importieren",
-    "Klicke auf `Import` und wähle die heruntergeladene `.mrpack`-Datei aus.\nDie Modifikationen werden automatisch übernommen.",
+    {
+      modrinth: "Schritt 3: Mrpack importieren",
+      prism: "Schritt 3: URL importieren",
+    },
+    {
+      modrinth:
+        "Klicke auf `Import` und wähle die heruntergeladene `.mrpack`-Datei aus.\nDie Modifikationen werden automatisch übernommen.",
+      prism: `Füge diese URL ein und klicke auf \`OK\`:\n${PRISM_IMPORT_URL}`,
+    },
     "install3.png",
     true,
   ],
@@ -88,7 +110,12 @@ const installSteps = [
 
 type LauncherId = keyof typeof LAUNCHERS;
 type ButtonId =
-  LauncherId | "own-launcher" | "done" | "fertig" | "prev-step" | "next-step";
+  | LauncherId
+  | "own-launcher"
+  | "done"
+  | "fertig"
+  | "prev-step"
+  | "next-step";
 
 export default {
   data: new SlashCommandBuilder()
@@ -197,15 +224,13 @@ async function showPreLaunchHook(
 function renderStep(launcher: (typeof LAUNCHERS)[LauncherId], index: number) {
   const [title, description, image, includeMrpack] = installSteps[index];
   const isFirst = index === 0;
-  const isLast = index === installSteps.length - 1;
+  const isLast = index === lastStepIndex(launcher.folder);
   const imageName = `${launcher.folder}_${image}`;
-  const desc =
-    typeof description === "string"
-      ? description
-      : description[launcher.folder];
+  const stepTitle = resolveStepText(title, launcher.folder);
+  const desc = resolveStepText(description, launcher.folder);
 
-  let content = `### ✅ Pre-Launch Hook – ${launcher.name}\n\n**${title}**`;
-  if (isLast) {
+  let content = `### ✅ Pre-Launch Hook – ${launcher.name}\n\n**${stepTitle}**`;
+  if (isLast && launcher.folder !== "prism") {
     content += `\n\n**Pre-Launch Hook Befehl:**\n\`\`\`bash\n${PRE_LAUNCH_HOOK}\n\`\`\`\n\n**Java Argumente:**\n\`\`\`\n${JAVA_START_TAGS}\n\`\`\``;
   }
 
@@ -213,7 +238,7 @@ function renderStep(launcher: (typeof LAUNCHERS)[LauncherId], index: number) {
     content,
     embeds: [
       new EmbedBuilder()
-        .setTitle(title)
+        .setTitle(stepTitle)
         .setDescription(desc)
         .setImage(`attachment://${imageName}`)
         .setColor(0x00aeff),
@@ -231,7 +256,7 @@ function renderStep(launcher: (typeof LAUNCHERS)[LauncherId], index: number) {
     attachments: [],
     files: [
       { attachment: `./assets/${launcher.folder}/${image}`, name: imageName },
-      ...(includeMrpack
+      ...(includeMrpack && launcher.folder === "modrinth"
         ? [{ attachment: "./assets/MCModded.mrpack", name: "MCModded.mrpack" }]
         : []),
     ],
@@ -268,6 +293,17 @@ async function handleOwnLauncher(interaction: ButtonInteraction) {
   } catch {
     // Timeout
   }
+}
+
+function lastStepIndex(folder: (typeof LAUNCHERS)[LauncherId]["folder"]) {
+  return folder === "prism" ? 2 : installSteps.length - 1;
+}
+
+function resolveStepText(
+  text: string | Record<(typeof LAUNCHERS)[LauncherId]["folder"], string>,
+  folder: (typeof LAUNCHERS)[LauncherId]["folder"],
+) {
+  return typeof text === "string" ? text : text[folder];
 }
 
 function buttonRow(
