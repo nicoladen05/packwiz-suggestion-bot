@@ -4,7 +4,7 @@ import { mkdir, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { execa } from "execa";
 import PQueue from "p-queue";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { db } from "../db";
 import { modpack } from "../db/schema";
 import { eq } from "drizzle-orm";
@@ -95,13 +95,23 @@ export class PackwizModpack {
     this.initialized = true;
   }
 
-  private async makeWorktree(name: string): Promise<string> {
-    const worktreePath = path.join(this.worktreePath, name);
+  private async makeWorktree(branchName: string): Promise<string> {
+    const worktreePath = path.join(
+      this.worktreePath,
+      this.generateWorktreeName(),
+    );
 
     // updates local main from remote
     await this.git.raw(["fetch", "origin", "main:main"]);
 
-    await this.git.raw(["worktree", "add", "-b", name, worktreePath, "main"]);
+    await this.git.raw([
+      "worktree",
+      "add",
+      "-b",
+      branchName,
+      worktreePath,
+      "main",
+    ]);
 
     return worktreePath;
   }
@@ -136,12 +146,16 @@ export class PackwizModpack {
       .replaceAll(encodeURIComponent(this.accessToken), "[redacted]");
   }
 
+  private generateWorktreeName(): string {
+    return randomBytes(6).toString("hex");
+  }
+
   async addModrinthMod(slug: string): Promise<boolean> {
     if (!this.initialized) {
       await this.initPromise;
     }
 
-    const branchName = `add-${slug}`;
+    const branchName = this.generateWorktreeName();
     const worktreePath = await this.makeWorktree(branchName);
 
     try {
