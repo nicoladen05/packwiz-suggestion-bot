@@ -16,8 +16,10 @@ ENV NODE_ENV=production \
 
 COPY --from=packwiz /go/bin/packwiz /usr/local/bin/packwiz
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile --production
+RUN bun install --frozen-lockfile
 
+COPY drizzle.config.ts ./
+COPY drizzle ./drizzle
 COPY src ./src
 COPY assets ./assets
 
@@ -25,4 +27,4 @@ RUN mkdir -p /data /tmp/packwiz-worktrees && chown -R bun:bun /app /data /tmp/pa
 USER bun
 
 VOLUME ["/data"]
-CMD ["bun", "run", "bot"]
+CMD ["sh", "-c", "bunx drizzle-kit migrate && bun run bot"]
