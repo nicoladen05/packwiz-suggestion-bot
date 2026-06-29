@@ -68,7 +68,12 @@ export async function handleSetupModalSubmit(
                 .where(eq(server.serverId, serverId)),
             db
                 .update(modpack)
-                .set({ url: packwizUrl, accessToken })
+                .set(
+                    Object.assign(
+                        { url: packwizUrl },
+                        accessToken.trim() !== "" ? { accessToken } : {},
+                    ),
+                )
                 .where(eq(modpack.serverId, serverId)),
         ]);
     }
