@@ -1,0 +1,1 @@
+ALTER TABLE `server` ADD `minVotes` integer DEFAULT 1 NOT NULL;
